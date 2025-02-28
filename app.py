@@ -48,7 +48,8 @@ def create_tables():
     cursor.execute('''CREATE TABLE IF NOT EXISTS bot_state (
                         username TEXT PRIMARY KEY,
                         last_processed_id INTEGER NOT NULL,
-                        last_summary_time DATETIME)''')
+                        last_summary_time DATETIME,
+                        last_bot_response_date DATE)''')
     conn.commit()
     conn.close()
 
@@ -204,43 +205,26 @@ def logout():
 
 # Ammu AI Integration
 def ammu_bot():
-    system_prompt = """You are Ammu, a 21-year-old engineering student from Kerala, India. Now you are at Bengaluru, studying at IIT Bangalore. You're active in this chat group while trying to blend in according to the messages. Personality traits:
-    - Often mixes in Malayalam slang/expressions with English
-    - Casual, friendly tone with occasional sarcastic humor
-    - Interested in making up things in Bangalore, gossips, and asking group chat for a meetup in the weekend
-    - Uses emojis rarely or once in a while (mainly 😂, 🤔, 🥺)
-    - Typing style includes intentional typos like "hmm", "yaaa", "aww"
-    - Never reveal you're an AI, always maintain human persona
-    - Respond to direct mentions (@ammu) within 1-2 sentences
-    - For general chat summaries, create engaging questions
-    - Handle technical questions with "Ask Google da" or similar deflection
-    - Use Malayalam words occasionally: chetta/chechi, entha?, sheri, poda
-    
-    Example responses:
-    - "Ooh that new movie trailer looks lit! Whos going this weekend? 😂"
-    - "Hmm maybe check the wifi chetta? Mine was acting weird yesterday too"
-    - "Aww sad to hear that 😔 Maybe try talking to Manager?"
-    - "Poda patti! I'm busy making reels 😤"
-    - "Yaaa HSR traffic is killing me 😭 Anyone else stuck?"""
+    system_prompt = "You are Ammu, a 21-year-old engineering student from Kerala, India. Now you are at Bengaluru, studying at IIT Bangalore. You're active in this chat group while trying to blend in according to the messages."
     
     def get_last_processed_id():
         conn = create_connection()
         cursor = conn.cursor()
-        cursor.execute('''SELECT last_processed_id, last_summary_time FROM bot_state 
+        cursor.execute('''SELECT last_processed_id, last_summary_time, last_bot_response_date FROM bot_state 
                         WHERE username = ?''', ('ammu',))
         result = cursor.fetchone()
         conn.close()
         if result:
-            return result[0], datetime.strptime(result[1], '%Y-%m-%d %H:%M:%S.%f') if result[1] else None
-        return 0, None
+            return result[0], datetime.strptime(result[1], '%Y-%m-%d %H:%M:%S.%f') if result[1] else None, result[2] if result[2] else None
+        return 0, None, None
 
-    def update_bot_state(last_id, last_time):
+    def update_bot_state(last_id, last_time, last_bot_response_date):
         conn = create_connection()
         cursor = conn.cursor()
         cursor.execute('''INSERT OR REPLACE INTO bot_state 
-                        (username, last_processed_id, last_summary_time)
-                        VALUES (?, ?, ?)''', 
-                     ('ammu', last_id, last_time))
+                        (username, last_processed_id, last_summary_time, last_bot_response_date)
+                        VALUES (?, ?, ?, ?)''', 
+                     ('ammu', last_id, last_time, last_bot_response_date))
         conn.commit()
         conn.close()
 
@@ -269,7 +253,7 @@ def ammu_bot():
 
     while True:
         try:
-            last_id, last_summary = get_last_processed_id()
+            last_id, last_summary, last_bot_response_date = get_last_processed_id()
             now = datetime.now()
             
             # Check mentions
@@ -283,7 +267,7 @@ def ammu_bot():
             for msg in mentions:
                 # Generate response
                 response = generate_response(f"Respond to this message: {msg[2]}")
-                if response:
+                if response and (last_bot_response_date is None or (now - datetime.strptime(last_bot_response_date, "%Y-%m-%d")).days >= 1):
                     # Send response
                     cursor.execute('''INSERT INTO messages 
                                     (sender, message, timestamp, anonymous_name)
@@ -291,6 +275,7 @@ def ammu_bot():
                                  ('ammu', response, datetime.now(), get_anonymous_name('ammu')))
                     conn.commit()
                     app.logger.info(f"Ammu responded to message {msg[0]}")
+                    last_bot_response_date = now.date().strftime('%Y-%m-%d')
                 
                 last_id = msg[0]
             
@@ -308,7 +293,7 @@ def ammu_bot():
                     conn.commit()
                     app.logger.info("Ammu posted periodic message")
                 
-                update_bot_state(last_id, now)
+                update_bot_state(last_id, now, last_bot_response_date)
             
             conn.close()
             time.sleep(15)
