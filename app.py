@@ -3,39 +3,19 @@ import sqlite3
 from datetime import datetime
 import hashlib
 import os
-
-import threading
-from faker import Faker
-
-app = Flask(__name__)
-app.secret_key = os.urandom(24)
-fake = Faker()
-
-# Admin credentials
-ADMIN_CREDENTIALS = {'username': 'admin', 'password': 'admin123'}
-
 import time
 import json
-import logging
-from logging.handlers import RotatingFileHandler
+from gevent import monkey
+from gevent.pywsgi import WSGIServer
+
+monkey.patch_all()  # Needed for async SSE support
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = os.urandom(24)  # Generate a secure secret key
 
-# Set up logging
-if not os.path.exists('logs'):
-    os.makedirs('logs')
-
-logging.basicConfig(level=logging.INFO)
-handler = RotatingFileHandler(
-    'logs/app.log', 
-    maxBytes=1024 * 1024,  # 1MB
-    backupCount=5
-)
-handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-))
-app.logger.addHandler(handler)
+# Add CORS support
+from flask_cors import CORS
+CORS(app)
 
 # Database functions
 def create_connection():
@@ -128,14 +108,10 @@ def signup():
             conn.close()
     return render_template('signup.html')
 
-@app.route('/global-chat')
-def global_chat():
-
 @app.route('/stream')
 def stream():
-    username = request.args.get('username')
+    username = request.args.get('username')  # Get username from query parameter
     if not username:
-        app.logger.error(f"Stream request without username")
         return {'status': 'error', 'message': 'Username is required'}, 400
 
     def event_stream():
@@ -160,17 +136,18 @@ def stream():
                         'timestamp': msg[4]
                     }
                     yield f"data: {json.dumps(data)}\n\n"
-                time.sleep(0.5)
+                time.sleep(0.5)  # Reduce sleep time
             except Exception as e:
-                app.logger.error(f"Stream error for user {username}: {str(e)}")
-                time.sleep(1)
+                print(f"Error in SSE stream: {str(e)}")
+                time.sleep(1)  # Reconnect delay
 
     return Response(
         event_stream(),
         mimetype='text/event-stream',
         headers={
             'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive'
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no'
         }
     )
 
@@ -282,16 +259,6 @@ def logout():
 
 if __name__ == '__main__':
     create_tables()
-    
-    # Create default admin user
-    conn = create_connection()
-    cursor = conn.cursor()
-    cursor.execute('''INSERT OR IGNORE INTO users 
-                    (username, password) VALUES (?, ?)''',
-                 ('admin', hash_password('admin123')))
-    conn.commit()
-    conn.close()
-
-    app.logger.info('Application startup: Database tables created')
-    # Run with standard Flask development server
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Use production server
+    http_server = WSGIServer(('0.0.0.0', 5000), app)
+    http_server.serve_forever()
