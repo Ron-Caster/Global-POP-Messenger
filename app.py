@@ -199,7 +199,6 @@ def get_user_messages(username):
 
 @app.route('/messages')
 def messaging():
->>>>>>> 1d28c9194f768334b172ced112c1bc271e064dcd
     if 'username' not in session:
         return redirect(url_for('login'))
     return render_template('global_chat.html', username=session['username'])
@@ -296,5 +295,4 @@ if __name__ == '__main__':
 =======
     app.logger.info('Application startup: Database tables created')
     # Run with standard Flask development server
->>>>>>> 1d28c9194f768334b172ced112c1bc271e064dcd
     app.run(host='0.0.0.0', port=5000, debug=True)
