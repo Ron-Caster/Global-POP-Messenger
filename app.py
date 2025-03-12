@@ -13,7 +13,7 @@ fake = Faker()
 
 # Admin credentials
 ADMIN_CREDENTIALS = {'username': 'admin', 'password': 'admin123'}
-=======
+
 import time
 import json
 import logging
@@ -130,7 +130,7 @@ def signup():
 
 @app.route('/global-chat')
 def global_chat():
-=======
+
 @app.route('/stream')
 def stream():
     username = request.args.get('username')
@@ -282,7 +282,7 @@ def logout():
 
 if __name__ == '__main__':
     create_tables()
-
+    
     # Create default admin user
     conn = create_connection()
     cursor = conn.cursor()
@@ -291,7 +291,7 @@ if __name__ == '__main__':
                  ('admin', hash_password('admin123')))
     conn.commit()
     conn.close()
-=======
+
     app.logger.info('Application startup: Database tables created')
     # Run with standard Flask development server
     app.run(host='0.0.0.0', port=5000, debug=True)
