@@ -36,7 +36,6 @@ handler.setFormatter(logging.Formatter(
     '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
 ))
 app.logger.addHandler(handler)
->>>>>>> 1d28c9194f768334b172ced112c1bc271e064dcd
 
 # Database functions
 def create_connection():
