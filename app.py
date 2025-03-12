@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 import hashlib
 import os
-<<<<<<< HEAD
+
 import threading
 from faker import Faker
 
@@ -128,7 +128,6 @@ def signup():
             conn.close()
     return render_template('signup.html')
 
-<<<<<<< HEAD
 @app.route('/global-chat')
 def global_chat():
 =======
@@ -283,7 +282,7 @@ def logout():
 
 if __name__ == '__main__':
     create_tables()
-<<<<<<< HEAD
+
     # Create default admin user
     conn = create_connection()
     cursor = conn.cursor()
